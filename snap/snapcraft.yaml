@@ -1,44 +1,68 @@
 name: yt-dlp
-summary: A fork of youtube-dl with additional features and patches 
+title: YT-DLP
+summary: A fork of youtube-dl with additional features and patches
 description: |
-      Based on youtube-dl 2021.06.06 commit/379f52a and 
+      Based on youtube-dl 2021.06.06 commit/379f52a and
       youtube-dlc 2020.11.11-3 commit/98e248f, youtube-dl offers all the
       features and patches of youtube-dlc in addition to the latest youtube-dl
 adopt-info: yt-dlp
-grade: stable 
+grade: stable
 confinement: strict
-base: core22
-architectures:
-  - build-on: amd64
-  - build-on: arm64
-  - build-on: armhf
+contact: graham.morrison@canonical.com
+issues: https://github.com/degville/snap-yt-dlp/issues
+donation: https://github.com/yt-dlp/yt-dlp/blob/master/Collaborators.md#collaborators
+source-code: https://github.com/yt-dlp/yt-dlp
+website: https://github.com/degville/snap-yt-dlp
+base: core26
+platforms:
+  amd64:
+  arm64:
+  armhf:
 
 apps:
   yt-dlp:
+    command-chain:
+      - bin/gpu-2604-wrapper
     command: bin/yt-dlp
-    plugs: [home, network, network-bind, removable-media]
-    environment:
+    plugs: [home, network, network-bind, removable-media,]
 environment:
-    LD_LIBRARY_PATH: "$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/blas:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/lapack:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pulseaudio"
-    PYTHONPATH: "$SNAP/usr/lib/python3/dist-packages:$SNAP_DESKTOP_RUNTIME/usr/lib/python3.10/site-packages:$PYTHONPATH"
+ PATH: "${SNAP}/usr/bin/:${SNAP}/bin:${PATH}"
+ PYTHONPATH: "${SNAP}/lib/python3.14/site-packages:${SNAP}/usr/lib/python3.14:${SNAP}/usr/lib/python3/dist-packages:${PYTHONPATH}"
+ LD_LIBRARY_PATH: "$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/blas:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/lapack:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pulseaudio:${LD_LIBRARY_PATH}"
+
+plugs:
+  gpu-2604:
+    interface: content
+    target: $SNAP/gpu-2604
+    default-provider: mesa-2604
+
 parts:
   yt-dlp:
     plugin: python
     source: https://github.com/yt-dlp/yt-dlp.git
-    #source-tag: '2023.10.13'
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags)
     stage-packages:
-      - libavdevice58
+      - libavdevice62
       - libblas3
       - ffmpeg
       - libpulse0
+      - python3-venv
       - python3-certifi
       - python3-mutagen
+  gpu-2604:
+    after: [yt-dlp]
+    source: https://github.com/canonical/gpu-snap.git
+    plugin: dump
+    override-prime: |
+      craftctl default
+      ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604
+    prime:
+    - bin/gpu-2604-wrapper
   deno:
     plugin: rust
-    source: https://github.com/denoland/deno/archive/refs/tags/v2.6.3.tar.gz
+    source: https://github.com/denoland/deno/archive/refs/tags/v2.9.2.tar.gz
     source-type: tar
     override-build: |
       cargo build --locked --release
